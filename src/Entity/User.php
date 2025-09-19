@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\UserRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -53,9 +55,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $allergy = null;
 
+    #[ORM\OneToOne(mappedBy: 'owner', targetEntity: Restaurant::class)]
+    private ?Restaurant $restaurant = null;
+
+    /** @var Collection<int, Booking> */
+    #[ORM\OneToMany(mappedBy: 'client', targetEntity: Booking::class)]
+    private Collection $bookings;
+
     public function __construct()
     {
         $this->apiToken = bin2hex(random_bytes(20));
+        $this->bookings = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -185,4 +195,40 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getAllergy(): ?string { return $this->allergy; }
     public function setAllergy(?string $allergy): static { $this->allergy = $allergy; return $this; }
+
+    public function getRestaurant(): ?Restaurant
+    {
+        return $this->restaurant;
+    }
+
+    public function setRestaurant(?Restaurant $restaurant): static
+    {
+        $this->restaurant = $restaurant;
+        if ($restaurant && $restaurant->getOwner() !== $this) {
+            $restaurant->setOwner($this);
+        }
+        return $this;
+    }
+
+    /** @return Collection<int, Booking> */
+    public function getBookings(): Collection { return $this->bookings; }
+
+    public function addBooking(Booking $booking): static
+    {
+        if (!$this->bookings->contains($booking)) {
+            $this->bookings->add($booking);
+            $booking->setClient($this);
+        }
+        return $this;
+    }
+
+    public function removeBooking(Booking $booking): static
+    {
+        if ($this->bookings->removeElement($booking)) {
+            if ($booking->getClient() === $this) {
+                $booking->setClient(null);
+            }
+        }
+        return $this;
+    }
 }

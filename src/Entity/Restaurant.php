@@ -55,6 +55,10 @@ class Restaurant
     #[ORM\OneToMany(targetEntity: Menu::class, mappedBy: 'restaurant')]
     private Collection $menus;
 
+    #[ORM\OneToOne(inversedBy: 'restaurant', targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?User $owner = null;
+
     public function __construct()
     {
         $this->pictures = new ArrayCollection();
@@ -238,6 +242,17 @@ class Restaurant
             }
         }
 
+        return $this;
+    }
+
+    public function getOwner(): ?User
+    {
+        return $this->owner;
+    }
+
+    public function setOwner(?User $owner): static
+    {
+        $this->owner = $owner;
         return $this;
     }
 }
