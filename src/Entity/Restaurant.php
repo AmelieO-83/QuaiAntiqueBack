@@ -7,6 +7,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ORM\Entity(repositoryClass: RestaurantRepository::class)]
 class Restaurant
@@ -14,27 +15,35 @@ class Restaurant
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['restaurant:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 32)]
+    #[Groups(['restaurant:read','restaurant:write'])]
     private ?string $name = null;
 
     #[ORM\Column(type: Types::TEXT)]
+    #[Groups(['restaurant:read','restaurant:write'])]
     private ?string $description = null;
 
     #[ORM\Column(type: Types::JSON)]
+    #[Groups(['restaurant:read','restaurant:write'])]
     private array $amOpeningTime = [];
 
     #[ORM\Column(type: Types::JSON)]
+    #[Groups(['restaurant:read','restaurant:write'])]
     private array $pmOpeningTime = [];
 
     #[ORM\Column]
+    #[Groups(['restaurant:read','restaurant:write'])]
     private ?int $maxGuest = null;
 
     #[ORM\Column]
+    #[Groups(['restaurant:read'])]
     private ?\DateTimeImmutable $createdAt = null;
 
     #[ORM\Column(nullable: true)]
+    #[Groups(['restaurant:read'])]
     private ?\DateTimeImmutable $updatedAt = null;
 
     /**
@@ -56,7 +65,8 @@ class Restaurant
     private Collection $menus;
 
     #[ORM\OneToOne(inversedBy: 'restaurant', targetEntity: User::class)]
-    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['restaurant:read'])]
     private ?User $owner = null;
 
     public function __construct()
@@ -176,7 +186,6 @@ class Restaurant
     public function removePicture(Picture $picture): static
     {
         if ($this->pictures->removeElement($picture)) {
-            // set the owning side to null (unless already changed)
             if ($picture->getRestaurant() === $this) {
                 $picture->setRestaurant(null);
             }
@@ -206,7 +215,6 @@ class Restaurant
     public function removeBooking(Booking $booking): static
     {
         if ($this->bookings->removeElement($booking)) {
-            // set the owning side to null (unless already changed)
             if ($booking->getRestaurant() === $this) {
                 $booking->setRestaurant(null);
             }
@@ -236,7 +244,6 @@ class Restaurant
     public function removeMenu(Menu $menu): static
     {
         if ($this->menus->removeElement($menu)) {
-            // set the owning side to null (unless already changed)
             if ($menu->getRestaurant() === $this) {
                 $menu->setRestaurant(null);
             }
@@ -253,6 +260,13 @@ class Restaurant
     public function setOwner(?User $owner): static
     {
         $this->owner = $owner;
+
+        if ($owner !== null && method_exists($owner, 'getRestaurant')) {
+            if ($owner->getRestaurant() !== $this) {
+                $owner->setRestaurant($this);
+            }
+        }
+
         return $this;
     }
 }

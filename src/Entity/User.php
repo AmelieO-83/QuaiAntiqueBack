@@ -9,6 +9,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
@@ -17,9 +18,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['user:read_min'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 180)]
+    #[Groups(['user:read_min'])]
     private ?string $email = null;
 
     /**
@@ -44,9 +47,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $apiToken = null;
 
     #[ORM\Column(length: 32, nullable: true)]
+    #[Groups(['user:read_min'])]
     private ?string $firstName = null;
 
     #[ORM\Column(length: 64, nullable: true)]
+    #[Groups(['user:read_min'])]
     private ?string $lastName = null;
 
     #[ORM\Column(type: Types::SMALLINT, nullable: true)]
@@ -204,9 +209,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setRestaurant(?Restaurant $restaurant): static
     {
         $this->restaurant = $restaurant;
-        if ($restaurant && $restaurant->getOwner() !== $this) {
-            $restaurant->setOwner($this);
-        }
         return $this;
     }
 

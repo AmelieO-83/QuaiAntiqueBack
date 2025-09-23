@@ -34,7 +34,10 @@ class Food
     /**
      * @var Collection<int, Category>
      */
-    #[ORM\ManyToMany(targetEntity: Category::class, mappedBy: 'foodCategory')]
+    #[ORM\ManyToMany(targetEntity: Category::class, inversedBy: 'foods')]
+    #[ORM\JoinTable(name: 'Food_Category')]
+    #[ORM\JoinColumn(name: 'FoodId', referencedColumnName: 'id')]
+    #[ORM\InverseJoinColumn(name: 'CategoryId', referencedColumnName: 'id')]
     private Collection $categories;
 
     public function __construct()
@@ -107,30 +110,19 @@ class Food
         return $this;
     }
 
-    /**
-     * @return Collection<int, Category>
-     */
-    public function getCategories(): Collection
-    {
-        return $this->categories;
-    }
+    public function getCategories(): Collection { return $this->categories; }
 
     public function addCategory(Category $category): static
     {
         if (!$this->categories->contains($category)) {
             $this->categories->add($category);
-            $category->addFoodCategory($this);
         }
-
         return $this;
     }
 
     public function removeCategory(Category $category): static
     {
-        if ($this->categories->removeElement($category)) {
-            $category->removeFoodCategory($this);
-        }
-
+        $this->categories->removeElement($category);
         return $this;
     }
 }

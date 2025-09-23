@@ -35,11 +35,14 @@ class Menu
     #[ORM\JoinColumn(nullable: false)]
     private ?Restaurant $restaurant = null;
 
-    /**
-     * @var Collection<int, Category>
-     */
-    #[ORM\ManyToMany(targetEntity: Category::class, mappedBy: 'menuCategory')]
-    private Collection $categories;
+/**
+ * @var Collection<int, Category>
+ */
+#[ORM\ManyToMany(targetEntity: Category::class, inversedBy: 'menus')]
+#[ORM\JoinTable(name: 'Menu_Category')]
+#[ORM\JoinColumn(name: 'MenuId', referencedColumnName: 'id')]
+#[ORM\InverseJoinColumn(name: 'CategoryId', referencedColumnName: 'id')]
+private Collection $categories;
 
     public function __construct()
     {
@@ -123,30 +126,19 @@ class Menu
         return $this;
     }
 
-    /**
-     * @return Collection<int, Category>
-     */
-    public function getCategories(): Collection
-    {
-        return $this->categories;
-    }
+    public function getCategories(): Collection { return $this->categories; }
 
     public function addCategory(Category $category): static
     {
         if (!$this->categories->contains($category)) {
             $this->categories->add($category);
-            $category->addMenuCategory($this);
         }
-
         return $this;
     }
 
     public function removeCategory(Category $category): static
     {
-        if ($this->categories->removeElement($category)) {
-            $category->removeMenuCategory($this);
-        }
-
+        $this->categories->removeElement($category);
         return $this;
     }
 }

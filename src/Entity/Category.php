@@ -27,19 +27,19 @@ class Category
     /**
      * @var Collection<int, Food>
      */
-    #[ORM\ManyToMany(targetEntity: Food::class, inversedBy: 'categories')]
-    private Collection $foodCategory;
+    #[ORM\ManyToMany(targetEntity: Food::class, mappedBy: 'categories')]
+    private Collection $foods;
 
     /**
      * @var Collection<int, Menu>
      */
-    #[ORM\ManyToMany(targetEntity: Menu::class, inversedBy: 'categories')]
-    private Collection $menuCategory;
+    #[ORM\ManyToMany(targetEntity: Menu::class, mappedBy: 'categories')]
+    private Collection $menus;
 
     public function __construct()
     {
-        $this->foodCategory = new ArrayCollection();
-        $this->menuCategory = new ArrayCollection();
+        $this->menus = new ArrayCollection();
+        $this->foods = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -83,51 +83,41 @@ class Category
         return $this;
     }
 
-    /**
-     * @return Collection<int, Food>
-     */
-    public function getFoodCategory(): Collection
-    {
-        return $this->foodCategory;
-    }
+    public function getFoods(): Collection { return $this->foods; }
 
-    public function addFoodCategory(Food $foodCategory): static
+    public function addFood(Food $food): static
     {
-        if (!$this->foodCategory->contains($foodCategory)) {
-            $this->foodCategory->add($foodCategory);
+        if (!$this->foods->contains($food)) {
+            $this->foods->add($food);
+            $food->addCategory($this); // garde les deux côtés synchronisés si tu veux
         }
-
         return $this;
     }
 
-    public function removeFoodCategory(Food $foodCategory): static
+    public function removeFood(Food $food): static
     {
-        $this->foodCategory->removeElement($foodCategory);
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, Menu>
-     */
-    public function getMenuCategory(): Collection
-    {
-        return $this->menuCategory;
-    }
-
-    public function addMenuCategory(Menu $menuCategory): static
-    {
-        if (!$this->menuCategory->contains($menuCategory)) {
-            $this->menuCategory->add($menuCategory);
+        if ($this->foods->removeElement($food)) {
+            $food->removeCategory($this);
         }
-
         return $this;
     }
 
-    public function removeMenuCategory(Menu $menuCategory): static
-    {
-        $this->menuCategory->removeElement($menuCategory);
+    public function getMenus(): Collection { return $this->menus; }
 
+    public function addMenu(Menu $menu): static
+    {
+        if (!$this->menus->contains($menu)) {
+            $this->menus->add($menu);
+            $menu->addCategory($this); // garde les 2 côtés en phase si tu veux
+        }
+        return $this;
+    }
+
+    public function removeMenu(Menu $menu): static
+    {
+        if ($this->menus->removeElement($menu)) {
+            $menu->removeCategory($this);
+        }
         return $this;
     }
 }
