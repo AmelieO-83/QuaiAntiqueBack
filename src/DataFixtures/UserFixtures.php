@@ -11,24 +11,31 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class UserFixtures extends Fixture
 {
+    public const USER_NB_TUPLES = 20;
+
     public function __construct(private UserPasswordHasherInterface $passwordHasher) {}
 
     /** @throws Exception */
     public function load(ObjectManager $manager): void
     {
-        for ($i = 1; $i <= 20; $i++) {
+        $faker = \Faker\Factory::create('fr_FR');
+        $faker->seed(1001);
+
+        for ($i = 1; $i <= self::USER_NB_TUPLES; $i++) {
+            $first = $faker->firstName();
+            $last  = $faker->lastName();
+            $email = "email.$i@studi.fr"; // déterministe pour éviter les collisions
+
             $user = (new User())
-                ->setFirstName("Firstname $i")
-                ->setLastName("Lastname $i")
-                ->setGuestNumber(random_int(0, 5))
-                ->setEmail("email.$i@studi.fr")
+                ->setFirstName($first)
+                ->setLastName($last)
+                ->setGuestNumber($faker->numberBetween(0, 5))
+                ->setEmail($email)
                 ->setCreatedAt(new DateTimeImmutable());
 
             $user->setPassword($this->passwordHasher->hashPassword($user, 'password'.$i));
 
             $manager->persist($user);
-
-            // ➜ référence pour pouvoir lier un restaurant ensuite
             $this->addReference('user'.$i, $user);
         }
 

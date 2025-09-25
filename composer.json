@@ -11,6 +11,7 @@
         "doctrine/doctrine-bundle": "^2.16.2",
         "doctrine/doctrine-migrations-bundle": "^3.4.2",
         "doctrine/orm": "^3.5.2",
+        "fakerphp/faker": "^1.24",
         "nelmio/api-doc-bundle": "^5.6",
         "nelmio/cors-bundle": "^2.5",
         "phpdocumentor/reflection-docblock": "^5.6",

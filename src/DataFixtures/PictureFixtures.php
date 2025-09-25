@@ -15,14 +15,21 @@ class PictureFixtures extends Fixture implements DependentFixtureInterface
     /** @throws Exception */
     public function load(ObjectManager $manager): void
     {
+        $faker = \Faker\Factory::create('fr_FR');
+        $faker->seed(1003);
+
         for ($i = 1; $i <= 20; $i++) {
             /** @var Restaurant $restaurant */
-            $restaurant = $this->getReference('restaurant'.random_int(1, 20), Restaurant::class);
-            $title = "Photo n°$i";
+            $restaurant = $this->getReference(
+                RestaurantFixtures::RESTAURANT_REFERENCE.$faker->numberBetween(1, RestaurantFixtures::RESTAURANT_NB_TUPLES),
+                Restaurant::class
+            );
+
+            $title = ucfirst($faker->words(3, true));
 
             $picture = (new Picture())
                 ->setTitle($title)
-                ->setSlug('picture-'.$i) // slug unique simple
+                ->setSlug('picture-'.$i) // unique simple
                 ->setRestaurant($restaurant)
                 ->setCreatedAt(new DateTimeImmutable());
 
