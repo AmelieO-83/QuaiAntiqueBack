@@ -1,5 +1,5 @@
+# .platform.app.yaml
 name: app
-
 type: php:8.4
 
 runtime:
@@ -9,15 +9,6 @@ runtime:
         - sodium
         - ctype
         - iconv
-        
-
-#variables:
-#    php:
-#        # uncomment on PHP 7.4+
-#        #opcache.preload: config/preload.php
-
-build:
-    flavor: none
 
 disk: 1024
 
@@ -28,30 +19,42 @@ web:
             expires: 1h
             passthru: "/index.php"
 
+# Un seul mount /var suffit (cache, logs, sessions…)
 mounts:
-    "/var/cache": { source: local, source_path: var/cache }
-    
+    "/var": { source: local, source_path: var }
+
+# Lier l’app au service MySQL défini dans .platform/services.yaml
+relationships:
+    database: "database:mysql"
+
+# Variables d’environnement runtime
+variables:
+    env:
+        APP_ENV: "prod"
+        APP_DEBUG: "0"
+
+build:
+    flavor: none
 
 hooks:
     build: |
-        set -x -e
-
+        set -e -x
+        # Outils Symfony/Cloud OK
         curl -fs https://get.symfony.com/cloud/configurator | bash
-        
-        NODE_VERSION=22 symfony-build
+        # Installer les dépendances SANS scripts (évite cache:clear en build)
+        composer install --no-dev --prefer-dist --no-progress --no-interaction --optimize-autoloader --classmap-authoritative --no-scripts
 
     deploy: |
-        set -x -e
-
-        symfony-deploy
+        set -e -x
+        # Ici la relation DB est injectée -> DATABASE_URL est dispo
+        php bin/console cache:clear --no-warmup
+        php bin/console doctrine:migrations:migrate --no-interaction
+        php bin/console cache:warmup
 
 crons:
     security-check:
-        # Check that no security issues have been found for PHP packages deployed in production
-        spec: '50 23 * * *'
+        spec: "50 23 * * *"
         cmd: if [ "$PLATFORM_ENVIRONMENT_TYPE" = "production" ]; then croncape COMPOSER_ROOT_VERSION=1.0.0 COMPOSER_AUDIT_ABANDONED=ignore composer audit --no-cache; fi
     clean-expired-sessions:
-        spec: '17,47 * * * *'
+        spec: "17,47 * * * *"
         cmd: croncape php-session-clean
-
-
