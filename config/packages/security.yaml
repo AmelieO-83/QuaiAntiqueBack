@@ -34,8 +34,16 @@ security:
         - { path: ^/api/registration, roles: PUBLIC_ACCESS }
         - { path: ^/api/login, roles: PUBLIC_ACCESS }
         - { path: ^/api/doc, roles: PUBLIC_ACCESS }
+
+        # --- Pictures publics en lecture ---
         - { path: ^/api/picture$, roles: PUBLIC_ACCESS, methods: [GET] }
         - { path: ^/api/picture/\d+$, roles: PUBLIC_ACCESS, methods: [GET] }
+
+        # --- Restaurants publics en lecture ---
+        - { path: ^/api/restaurant$, roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: ^/api/restaurant/\d+$, roles: PUBLIC_ACCESS, methods: [GET] }
+
+        # Tout le reste de /api nécessite un user (POST/PUT/DELETE inclus)
         - { path: ^/api, roles: ROLE_USER }
         - { path: ^/account, roles: ROLE_USER }
 
