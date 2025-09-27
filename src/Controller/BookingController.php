@@ -102,6 +102,21 @@ final class BookingController extends AbstractController
         ], Response::HTTP_CREATED);
     }
 
+    #[Route(name: 'index', methods: ['GET'])]
+    public function index(#[CurrentUser] ?User $user): JsonResponse
+    {
+        if (!$user) return $this->json(['message'=>'Unauthorized'], 401);
+        $items = $this->bookingRepo->findBy(['client' => $user], ['orderDate' => 'DESC', 'orderHour' => 'DESC']);
+        return $this->json(array_map(fn($b)=>[
+            'id' => $b->getId(),
+            'restaurantId' => $b->getRestaurant()?->getId(),
+            'guestNumber'  => $b->getGuestNumber(),
+            'orderDate'    => $b->getOrderDate()?->format('Y-m-d'),
+            'orderHour'    => $b->getOrderHour()?->format('H:i:s'),
+            'allergy'      => $b->getAllergy(),
+        ], $items));
+    }
+
     #[Route('/{id}', name: 'show', methods: ['GET'])]
     #[OA\Get(
         path: '/api/booking/{id}',
