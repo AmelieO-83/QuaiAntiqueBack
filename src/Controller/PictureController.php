@@ -101,6 +101,27 @@ final class PictureController extends AbstractController
         ], Response::HTTP_CREATED, ['Location' => $location]);
     }
 
+    // Liste toutes les photos (publique)
+    #[Route('', name: 'index', methods: ['GET'])]
+    public function index(PictureRepository $pictures): JsonResponse
+    {
+        $list = $pictures->findBy([], ['createdAt' => 'DESC'], 50);
+
+        // On renvoie un tableau simple {id, title, slug, restaurantId, createdAt}
+        $data = array_map(static function (Picture $p) {
+            return [
+                'id'           => $p->getId(),
+                'title'        => $p->getTitle(),
+                'slug'         => $p->getSlug(),
+                'restaurantId' => $p->getRestaurant()?->getId(),
+                'createdAt'    => $p->getCreatedAt()?->format(DATE_ATOM),
+            ];
+        }, $list);
+
+        return new JsonResponse($data);
+    }
+
+
     #[Route('/{id}', name: 'show', methods: ['GET'])]
     #[OA\Get(
         path: '/api/picture/{id}',
