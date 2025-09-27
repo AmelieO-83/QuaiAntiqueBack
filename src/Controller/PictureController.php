@@ -3,7 +3,6 @@
 namespace App\Controller;
 
 use App\Entity\Picture;
-use App\Entity\Restaurant;
 use App\Entity\User;
 use App\Repository\PictureRepository;
 use App\Repository\RestaurantRepository;
@@ -18,7 +17,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Attribute\CurrentUser;
 
-#[Route('/api/picture', name:'app_api_picture_')]
+#[Route('/api/picture', name: 'app_api_picture_')]
 final class PictureController extends AbstractController
 {
     public function __construct(
@@ -28,19 +27,27 @@ final class PictureController extends AbstractController
         private UrlGeneratorInterface $urlGenerator,
     ) {}
 
-    #[Route(name:'new', methods: ['POST'])]
+    // ---------------------------------------------------------------------
+    // CREATE
+    // ---------------------------------------------------------------------
+    #[Route(name: 'new', methods: ['POST'])]
     #[OA\Post(
         path: '/api/picture',
         summary: 'Ajouter une image à un restaurant',
         requestBody: new OA\RequestBody(
             required: true,
-            description: 'JSON: title, slug, restaurantId',
+            description: 'JSON requis: title, slug, restaurantId',
             content: new OA\JsonContent(
                 type: 'object',
                 properties: [
                     new OA\Property(property: 'title', type: 'string', example: 'Façade'),
                     new OA\Property(property: 'slug',  type: 'string', example: 'facade-ete-2025'),
                     new OA\Property(property: 'restaurantId', type: 'integer', example: 1),
+                    // Champs facultatifs envoyés par le front mais ignorés côté back pour l’instant:
+                    new OA\Property(property: 'imageBase64', type: 'string', nullable: true),
+                    new OA\Property(property: 'filename', type: 'string', nullable: true),
+                    new OA\Property(property: 'mimeType', type: 'string', nullable: true),
+                    new OA\Property(property: 'size', type: 'integer', nullable: true),
                 ]
             )
         ),
@@ -48,7 +55,7 @@ final class PictureController extends AbstractController
             new OA\Response(response: 201, description: 'Créée'),
             new OA\Response(response: 400, description: 'JSON invalide / champs manquants'),
             new OA\Response(response: 401, description: 'Non authentifié'),
-            new OA\Response(response: 403, description: 'Interdit (pas owner)'),
+            new OA\Response(response: 403, description: 'Interdit (ni owner ni admin)'),
             new OA\Response(response: 404, description: 'Restaurant non trouvé'),
         ]
     )]
@@ -58,8 +65,11 @@ final class PictureController extends AbstractController
             return $this->json(['message' => 'Authentication required'], Response::HTTP_UNAUTHORIZED);
         }
 
-        try { $data = $request->toArray(); }
-        catch (\Throwable) { return $this->json(['message' => 'Invalid JSON'], Response::HTTP_BAD_REQUEST); }
+        try {
+            $data = $request->toArray();
+        } catch (\Throwable) {
+            return $this->json(['message' => 'Invalid JSON'], Response::HTTP_BAD_REQUEST);
+        }
 
         $title = trim((string)($data['title'] ?? ''));
         $slug  = trim((string)($data['slug'] ?? ''));
@@ -73,7 +83,10 @@ final class PictureController extends AbstractController
         if (!$restaurant) {
             return $this->json(['message' => 'Restaurant not found'], Response::HTTP_NOT_FOUND);
         }
-        if ($restaurant->getOwner()?->getId() !== $user->getId()) {
+
+        // Autoriser si owner OU admin
+        $ownerId = $restaurant->getOwner()?->getId();
+        if (!$this->isGranted('ROLE_ADMIN') && $ownerId !== $user->getId()) {
             return $this->json(['message' => 'Forbidden'], Response::HTTP_FORBIDDEN);
         }
 
@@ -101,13 +114,14 @@ final class PictureController extends AbstractController
         ], Response::HTTP_CREATED, ['Location' => $location]);
     }
 
-    // Liste toutes les photos (publique)
+    // ---------------------------------------------------------------------
+    // LIST (public)
+    // ---------------------------------------------------------------------
     #[Route('', name: 'index', methods: ['GET'])]
-    public function index(PictureRepository $pictures): JsonResponse
+    public function index(): JsonResponse
     {
-        $list = $pictures->findBy([], ['createdAt' => 'DESC'], 50);
+        $list = $this->pictures->findBy([], ['createdAt' => 'DESC'], 50);
 
-        // On renvoie un tableau simple {id, title, slug, restaurantId, createdAt}
         $data = array_map(static function (Picture $p) {
             return [
                 'id'           => $p->getId(),
@@ -121,12 +135,14 @@ final class PictureController extends AbstractController
         return new JsonResponse($data);
     }
 
-
+    // ---------------------------------------------------------------------
+    // SHOW (public)
+    // ---------------------------------------------------------------------
     #[Route('/{id}', name: 'show', methods: ['GET'])]
     #[OA\Get(
         path: '/api/picture/{id}',
         summary: 'Afficher une image',
-        parameters: [new OA\Parameter(name:'id', in:'path', required:true, schema:new OA\Schema(type:'integer'))],
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
         responses: [
             new OA\Response(response: 200, description: 'OK'),
             new OA\Response(response: 404, description: 'Non trouvé'),
@@ -149,11 +165,14 @@ final class PictureController extends AbstractController
         ]);
     }
 
+    // ---------------------------------------------------------------------
+    // EDIT
+    // ---------------------------------------------------------------------
     #[Route('/{id}', name: 'edit', methods: ['PUT'])]
     #[OA\Put(
         path: '/api/picture/{id}',
-        summary: 'Modifier une image',
-        parameters: [new OA\Parameter(name:'id', in:'path', required:true, schema:new OA\Schema(type:'integer'))],
+        summary: 'Modifier une image (owner ou admin)',
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
         requestBody: new OA\RequestBody(
             required: false,
             content: new OA\JsonContent(
@@ -181,21 +200,30 @@ final class PictureController extends AbstractController
         if (!$user) {
             return $this->json(['message' => 'Authentication required'], Response::HTTP_UNAUTHORIZED);
         }
-        if ($p->getRestaurant()?->getOwner()?->getId() !== $user->getId()) {
+
+        $ownerId = $p->getRestaurant()?->getOwner()?->getId();
+        if (!$this->isGranted('ROLE_ADMIN') && $ownerId !== $user->getId()) {
             return $this->json(['message' => 'Forbidden'], Response::HTTP_FORBIDDEN);
         }
 
-        try { $data = $request->toArray(); }
-        catch (\Throwable) { return $this->json(['message' => 'Invalid JSON'], Response::HTTP_BAD_REQUEST); }
+        try {
+            $data = $request->toArray();
+        } catch (\Throwable) {
+            return $this->json(['message' => 'Invalid JSON'], Response::HTTP_BAD_REQUEST);
+        }
 
         if (array_key_exists('title', $data)) {
             $t = trim((string)$data['title']);
-            if ($t === '') { return $this->json(['message' => 'Invalid "title"'], Response::HTTP_BAD_REQUEST); }
+            if ($t === '') {
+                return $this->json(['message' => 'Invalid "title"'], Response::HTTP_BAD_REQUEST);
+            }
             $p->setTitle($t);
         }
         if (array_key_exists('slug', $data)) {
             $s = trim((string)$data['slug']);
-            if ($s === '') { return $this->json(['message' => 'Invalid "slug"'], Response::HTTP_BAD_REQUEST); }
+            if ($s === '') {
+                return $this->json(['message' => 'Invalid "slug"'], Response::HTTP_BAD_REQUEST);
+            }
             $p->setSlug($s);
         }
 
@@ -212,11 +240,14 @@ final class PictureController extends AbstractController
         ]);
     }
 
+    // ---------------------------------------------------------------------
+    // DELETE
+    // ---------------------------------------------------------------------
     #[Route('/{id}', name: 'delete', methods: ['DELETE'])]
     #[OA\Delete(
         path: '/api/picture/{id}',
-        summary: 'Supprimer une image',
-        parameters: [new OA\Parameter(name:'id', in:'path', required:true, schema:new OA\Schema(type:'integer'))],
+        summary: 'Supprimer une image (owner ou admin)',
+        parameters: [new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
         responses: [
             new OA\Response(response: 204, description: 'Supprimée'),
             new OA\Response(response: 401, description: 'Non authentifié'),
@@ -233,7 +264,9 @@ final class PictureController extends AbstractController
         if (!$user) {
             return $this->json(['message' => 'Authentication required'], Response::HTTP_UNAUTHORIZED);
         }
-        if ($p->getRestaurant()?->getOwner()?->getId() !== $user->getId()) {
+
+        $ownerId = $p->getRestaurant()?->getOwner()?->getId();
+        if (!$this->isGranted('ROLE_ADMIN') && $ownerId !== $user->getId()) {
             return $this->json(['message' => 'Forbidden'], Response::HTTP_FORBIDDEN);
         }
 
