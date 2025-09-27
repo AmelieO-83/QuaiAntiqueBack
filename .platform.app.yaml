@@ -22,6 +22,9 @@ web:
 # Un seul mount /var suffit (cache, logs, sessions…)
 mounts:
     "/var": { source: local, source_path: var }
+    "public/uploads":
+        source: local
+        source_path: "uploads"
 
 # Lier l’app au service MySQL défini dans .platform/services.yaml
 relationships:
