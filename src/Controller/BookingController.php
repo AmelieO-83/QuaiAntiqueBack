@@ -107,13 +107,14 @@ final class BookingController extends AbstractController
     {
         if (!$user) return $this->json(['message'=>'Unauthorized'], 401);
         $items = $this->bookingRepo->findBy(['client' => $user], ['orderDate' => 'DESC', 'orderHour' => 'DESC']);
-        return $this->json(array_map(fn($b)=>[
-            'id' => $b->getId(),
-            'restaurantId' => $b->getRestaurant()?->getId(),
-            'guestNumber'  => $b->getGuestNumber(),
-            'orderDate'    => $b->getOrderDate()?->format('Y-m-d'),
-            'orderHour'    => $b->getOrderHour()?->format('H:i:s'),
-            'allergy'      => $b->getAllergy(),
+        return $this->json(array_map(fn($b) => [
+            'id'             => $b->getId(),
+            'restaurantId'   => $b->getRestaurant()?->getId(),
+            'restaurantName' => $b->getRestaurant()?->getName(),   // 👈 ajouté
+            'guestNumber'    => $b->getGuestNumber(),
+            'orderDate'      => $b->getOrderDate()?->format('Y-m-d'),
+            'orderHour'      => $b->getOrderHour()?->format('H:i:s'),
+            'allergy'        => $b->getAllergy(),
         ], $items));
     }
 
@@ -140,7 +141,7 @@ final class BookingController extends AbstractController
 
         return $this->json([
             'id'           => $booking->getId(),
-            'restaurantId' => $booking->getRestaurant()?->getId(),
+            'restaurantName' => $booking->getRestaurant()?->getName(),
             'clientId'     => $booking->getClient()?->getId(),
             'guestNumber'  => $booking->getGuestNumber(),
             'orderDate'    => $booking->getOrderDate()?->format('Y-m-d'),
