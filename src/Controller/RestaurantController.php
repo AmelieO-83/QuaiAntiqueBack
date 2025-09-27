@@ -109,6 +109,16 @@ final class RestaurantController extends AbstractController
         );
     }
 
+    #[Route('', name: 'index', methods: ['GET'])]
+    public function index(RestaurantRepository $repo): JsonResponse
+    {
+        $items = $repo->findAll();
+        return $this->json(array_map(fn($r) => [
+            'id' => $r->getId(),
+            'name' => $r->getName(),
+        ], $items));
+    }
+
     #[Route('/{id}', name: 'show', methods: ['GET'])]
     #[OA\Get(
         path: '/api/restaurant/{id}',
