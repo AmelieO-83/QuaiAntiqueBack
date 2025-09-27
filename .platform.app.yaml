@@ -21,8 +21,8 @@ web:
 
 # Un seul mount /var suffit (cache, logs, sessions…)
 mounts:
-    "/var": { source: local, source_path: var }
-    "public/uploads":
+    "/var": { source: local, source_path: "var" }
+    "/public/uploads":
         source: local
         source_path: "uploads"
 
