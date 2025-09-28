@@ -48,12 +48,13 @@ security:
         - { path: ^/api/menu$, roles: PUBLIC_ACCESS, methods: [GET] }
         - { path: ^/api/category$, roles: PUBLIC_ACCESS, methods: [GET] }
         - { path: ^/api/food$, roles: PUBLIC_ACCESS, methods: [GET] }
-        - { path: ^/api/category, roles: ROLE_ADMIN } # POST/PUT/DELETE
-        - { path: ^/api/food, roles: ROLE_ADMIN }
 
         # Tout le reste de /api nécessite un user (POST/PUT/DELETE inclus)
         - { path: ^/api, roles: ROLE_USER }
         - { path: ^/account, roles: ROLE_USER }
+
+        - { path: ^/api/category, roles: ROLE_ADMIN } # POST/PUT/DELETE
+        - { path: ^/api/food, roles: ROLE_ADMIN }
 
 when@test:
     security:
