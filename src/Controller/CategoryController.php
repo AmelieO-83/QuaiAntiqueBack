@@ -120,6 +120,19 @@ final class CategoryController extends AbstractController
         );
     }
 
+    #[Route('', name: 'index', methods: ['GET'])]
+    public function index(CategoryRepository $repo): JsonResponse
+    {
+        $items = $repo->findBy([], ['title' => 'ASC']);
+        return $this->json(array_map(
+            fn(\App\Entity\Category $c) => [
+                'id'    => $c->getId(),
+                'title' => $c->getTitle(),
+            ],
+            $items
+        ));
+    }
+
     #[Route('/{id}', name: 'show', methods: ['GET'])]
     #[OA\Get(
         path: '/api/category/{id}',
