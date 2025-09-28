@@ -125,6 +125,28 @@ final class FoodController extends AbstractController
         );
     }
 
+    #[Route('', name: 'index', methods: ['GET'])]
+    public function index(): JsonResponse
+    {
+        $list = $this->repository->findBy([], ['createdAt' => 'DESC']);
+
+        $out = array_map(static function (Food $f) {
+            return [
+                'id'          => $f->getId(),
+                'title'       => $f->getTitle(),
+                'description' => $f->getDescription(),
+                'price'       => $f->getPrice(),
+                // on exporte les ids de catégories pour le regroupement côté front
+                'categoryIds' => array_map(fn(Category $c) => $c->getId(), $f->getCategories()->toArray()),
+                'createdAt'   => $f->getCreatedAt()?->format(DATE_ATOM),
+                'updatedAt'   => $f->getUpdatedAt()?->format(DATE_ATOM),
+            ];
+        }, $list);
+
+        return $this->json($out);
+    }
+
+
     #[Route('/{id}', name: 'show', methods: ['GET'])]
     #[OA\Get(
         path: '/api/food/{id}',
