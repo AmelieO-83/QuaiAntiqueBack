@@ -30,46 +30,15 @@ final class PictureController extends AbstractController
     // ---------------------------------------------------------------------
     // CREATE
     // ---------------------------------------------------------------------
-    #[Route(name: 'new', methods: ['POST'])]
-    #[OA\Post(
-        path: '/api/picture',
-        summary: 'Ajouter une image à un restaurant',
-        requestBody: new OA\RequestBody(
-            required: true,
-            description: 'JSON requis: title, slug, restaurantId',
-            content: new OA\JsonContent(
-                type: 'object',
-                properties: [
-                    new OA\Property(property: 'title', type: 'string', example: 'Façade'),
-                    new OA\Property(property: 'slug',  type: 'string', example: 'facade-ete-2025'),
-                    new OA\Property(property: 'restaurantId', type: 'integer', example: 1),
-                    // Champs facultatifs envoyés par le front mais ignorés côté back pour l’instant:
-                    new OA\Property(property: 'imageBase64', type: 'string', nullable: true),
-                    new OA\Property(property: 'filename', type: 'string', nullable: true),
-                    new OA\Property(property: 'mimeType', type: 'string', nullable: true),
-                    new OA\Property(property: 'size', type: 'integer', nullable: true),
-                ]
-            )
-        ),
-        responses: [
-            new OA\Response(response: 201, description: 'Créée'),
-            new OA\Response(response: 400, description: 'JSON invalide / champs manquants'),
-            new OA\Response(response: 401, description: 'Non authentifié'),
-            new OA\Response(response: 403, description: 'Interdit (ni owner ni admin)'),
-            new OA\Response(response: 404, description: 'Restaurant non trouvé'),
-        ]
-    )]
+    #[Route(name:'new', methods: ['POST'])]
     public function new(Request $request, #[CurrentUser] ?User $user): JsonResponse
     {
         if (!$user) {
             return $this->json(['message' => 'Authentication required'], Response::HTTP_UNAUTHORIZED);
         }
 
-        try {
-            $data = $request->toArray();
-        } catch (\Throwable) {
-            return $this->json(['message' => 'Invalid JSON'], Response::HTTP_BAD_REQUEST);
-        }
+        try { $data = $request->toArray(); }
+        catch (\Throwable) { return $this->json(['message' => 'Invalid JSON'], Response::HTTP_BAD_REQUEST); }
 
         $title = trim((string)($data['title'] ?? ''));
         $slug  = trim((string)($data['slug'] ?? ''));
@@ -84,17 +53,68 @@ final class PictureController extends AbstractController
             return $this->json(['message' => 'Restaurant not found'], Response::HTTP_NOT_FOUND);
         }
 
-        // Autoriser si owner OU admin
+        // autoriser owner OU admin
         $ownerId = $restaurant->getOwner()?->getId();
         if (!$this->isGranted('ROLE_ADMIN') && $ownerId !== $user->getId()) {
             return $this->json(['message' => 'Forbidden'], Response::HTTP_FORBIDDEN);
+        }
+
+        // -------- gestion du fichier envoyé en base64 (depuis le front) --------
+        $imageBase64 = $data['imageBase64'] ?? null;
+        $filename    = $data['filename']    ?? null; // "photo.jpg"
+        $mimeType    = $data['mimeType']    ?? null; // "image/jpeg"
+        $maxSize     = 6 * 1024 * 1024;             // 6 Mo
+
+        $publicPath = null;
+
+        if ($imageBase64) {
+            // nettoyer "data:*;base64," si présent
+            if (is_string($imageBase64) && str_contains($imageBase64, ',')) {
+                $parts = explode(',', $imageBase64, 2);
+                $imageBase64 = $parts[1];
+            }
+
+            $bin = base64_decode((string)$imageBase64, true);
+            if ($bin === false) {
+                return $this->json(['message' => 'Invalid imageBase64'], Response::HTTP_BAD_REQUEST);
+            }
+            if (strlen($bin) > $maxSize) {
+                return $this->json(['message' => 'File too large (max 6MB)'], Response::HTTP_BAD_REQUEST);
+            }
+
+            // extension
+            $ext = 'jpg';
+            $map = ['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];
+            if ($mimeType && isset($map[$mimeType])) {
+                $ext = $map[$mimeType];
+            } elseif (is_string($filename) && preg_match('/\.(jpe?g|png|webp)$/i', $filename, $m)) {
+                $ext = strtolower($m[1]) === 'jpeg' ? 'jpg' : strtolower($m[1]);
+            }
+
+            // dossier d’upload côté public
+            $targetDir = $this->getParameter('kernel.project_dir') . '/public/uploads/pictures';
+            if (!is_dir($targetDir)) {
+                @mkdir($targetDir, 0775, true);
+            }
+
+            $safeSlug = preg_replace('/[^a-z0-9\-]+/i', '-', $slug) ?: ('img-'.bin2hex(random_bytes(4)));
+            $unique   = bin2hex(random_bytes(4));
+            $targetFs = $targetDir . '/' . $safeSlug . '-' . $unique . '.' . $ext;
+
+            if (@file_put_contents($targetFs, $bin) === false) {
+                return $this->json(['message' => 'Cannot write file'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            }
+
+            // chemin public (pour le front)
+            $publicPath = '/uploads/pictures/' . basename($targetFs);
         }
 
         $picture = (new Picture())
             ->setTitle($title)
             ->setSlug($slug)
             ->setRestaurant($restaurant)
-            ->setCreatedAt(new DateTimeImmutable());
+            ->setCreatedAt(new \DateTimeImmutable())
+            ->setPath($publicPath); // <= null si pas d’image envoyée
 
         $this->manager->persist($picture);
         $this->manager->flush();
@@ -110,6 +130,7 @@ final class PictureController extends AbstractController
             'title'        => $picture->getTitle(),
             'slug'         => $picture->getSlug(),
             'restaurantId' => $restaurant->getId(),
+            'path'         => $picture->getPath(), // 👈 renvoyé
             'createdAt'    => $picture->getCreatedAt()?->format(DATE_ATOM),
         ], Response::HTTP_CREATED, ['Location' => $location]);
     }
@@ -128,6 +149,7 @@ final class PictureController extends AbstractController
                 'title'        => $p->getTitle(),
                 'slug'         => $p->getSlug(),
                 'restaurantId' => $p->getRestaurant()?->getId(),
+                'path'         => $p->getPath(), // 👈
                 'createdAt'    => $p->getCreatedAt()?->format(DATE_ATOM),
             ];
         }, $list);
@@ -160,6 +182,7 @@ final class PictureController extends AbstractController
             'title'        => $p->getTitle(),
             'slug'         => $p->getSlug(),
             'restaurantId' => $p->getRestaurant()?->getId(),
+            'path'         => $p->getPath(), // 👈
             'createdAt'    => $p->getCreatedAt()?->format(DATE_ATOM),
             'updatedAt'    => $p->getUpdatedAt()?->format(DATE_ATOM),
         ]);

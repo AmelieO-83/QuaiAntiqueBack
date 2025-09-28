@@ -29,6 +29,12 @@ class Picture
     #[ORM\JoinColumn(nullable: false)]
     private ?Restaurant $restaurant = null;
 
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $path = null;
+
+    public function getPath(): ?string { return $this->path; }
+    public function setPath(?string $path): self { $this->path = $path; return $this; }
+
     public function getId(): ?int
     {
         return $this->id;

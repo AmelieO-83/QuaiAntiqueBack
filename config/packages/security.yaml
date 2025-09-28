@@ -9,6 +9,8 @@ security:
             entity:
                 class: App\Entity\User
                 property: email
+    role_hierarchy:
+        ROLE_ADMIN: [ROLE_USER]
     firewalls:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
@@ -42,6 +44,12 @@ security:
         # --- Restaurants publics en lecture ---
         - { path: ^/api/restaurant$, roles: PUBLIC_ACCESS, methods: [GET] }
         - { path: ^/api/restaurant/\d+$, roles: PUBLIC_ACCESS, methods: [GET] }
+
+        - { path: ^/api/menu$, roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: ^/api/category$, roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: ^/api/food$, roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: ^/api/category, roles: ROLE_ADMIN } # POST/PUT/DELETE
+        - { path: ^/api/food, roles: ROLE_ADMIN }
 
         # Tout le reste de /api nécessite un user (POST/PUT/DELETE inclus)
         - { path: ^/api, roles: ROLE_USER }
