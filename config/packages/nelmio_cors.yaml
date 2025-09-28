@@ -1,17 +1,17 @@
 nelmio_cors:
     defaults:
-        origin_regex: true
-        allow_origin: ["%env(CORS_ALLOW_ORIGIN)%"]
-        allow_methods: ["GET", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"]
+        allow_origin: []
+        allow_methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
         allow_headers: ["Content-Type", "Authorization", "X-AUTH-TOKEN"]
         expose_headers: ["Link"]
         max_age: 3600
+
     paths:
-        "^/":
+        "^/api/":
             allow_origin:
-                - "http://localhost:5173" # Vite (dev)
-                - "http://localhost:3000" # Next/Vite alternatif (dev)
-                - "https://main-bvxea6i-mvgwmzcr2brk2.fr-3.platformsh.site"
+                - "https://main-bvxea6i-ivrhmsnidydw2.fr-3.platformsh.site" # FRONT (Platform.sh)
+                - "http://localhost:5173" # FRONT local (Vite)
+            allow_methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
             allow_headers: ["Content-Type", "Authorization", "X-AUTH-TOKEN"]
-            allow_methods: ["GET", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"]
+            expose_headers: ["Link"]
             max_age: 3600
